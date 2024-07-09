@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import axios from "axios";
 import {
   FaLeaf,
   FaSeedling,
@@ -11,11 +12,73 @@ import {
 import { MdLocalFlorist } from "react-icons/md";
 import { FiChevronLeft, FiChevronRight, FiInfo } from "react-icons/fi";
 
+const ProductCard = ({ product }) => (
+  <motion.div
+    initial={{ y: 50, opacity: 0 }}
+    whileInView={{ y: 0, opacity: 1 }}
+    transition={{ duration: 0.5 }}
+    whileHover={{ scale: 1.05, transition: { duration: 0.2 } }}
+    className="border rounded-lg overflow-hidden shadow-md bg-white h-full flex flex-col"
+  >
+    <motion.div
+      className="w-full pb-[75%] relative"
+      whileHover={{ scale: 1.1 }}
+      transition={{ duration: 0.3 }}
+    >
+      <img
+        src={product.image}
+        alt={product.title}
+        className="absolute top-0 left-0 w-full h-full object-cover"
+        loading="lazy"
+      />
+    </motion.div>
+    <div className="p-2 sm:p-4 flex flex-col flex-grow">
+      <motion.h3
+        className="font-semibold text-xs sm:text-sm mb-1 sm:mb-2 truncate text-indigo-800"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2, duration: 0.3 }}
+      >
+        {product.title}
+      </motion.h3>
+      <motion.p
+        className="text-indigo-600 text-xs mb-2 sm:mb-3"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.3, duration: 0.3 }}
+      >
+        ${product.price.toFixed(2)}
+      </motion.p>
+      <motion.div
+        className="flex justify-between mt-auto"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.4, duration: 0.3 }}
+      >
+        <Link
+          to={`/product/${product.id}`}
+          className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded text-sm flex items-center transition duration-300 ease-in-out transform hover:scale-105"
+        >
+          <FiInfo className="mr-1" />
+          View
+        </Link>
+        <button className="bg-green-500 hover:bg-green-600 text-white font-bold py-1 px-2 rounded text-sm flex items-center transition duration-300 ease-in-out transform hover:scale-105">
+          <FaShoppingCart className="mr-1" /> Add
+        </button>
+      </motion.div>
+    </div>
+  </motion.div>
+);
+
 const HomePage = () => {
   const [currentCard, setCurrentCard] = useState(0);
   const [currentFeaturedCard, setCurrentFeaturedCard] = useState(0);
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [visibleCards, setVisibleCards] = useState(1);
   const cardContainerRef = useRef(null);
   const featuredCardContainerRef = useRef(null);
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
 
   const cards = [
     {
@@ -60,39 +123,6 @@ const HomePage = () => {
     },
   ];
 
-  const featuredProducts = [
-    {
-      title: "Organic Apples",
-      price: "$2.99/lb",
-      image:
-        "https://images.unsplash.com/photo-1568702846914-96b305d2aaeb?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60",
-    },
-    {
-      title: "Fresh Broccoli",
-      price: "$1.99/head",
-      image:
-        "https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60",
-    },
-    {
-      title: "Organic Strawberries",
-      price: "$3.99/pint",
-      image:
-        "https://images.unsplash.com/photo-1518635017498-87f514b751ba?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60",
-    },
-    {
-      title: "Fresh Spinach",
-      price: "$2.49/bunch",
-      image:
-        "https://images.unsplash.com/photo-1576045057995-568f588f82fb?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60",
-    },
-    {
-      title: "Organic Tomatoes",
-      price: "$3.49/lb",
-      image:
-        "https://images.unsplash.com/photo-1518977676601-b53f82aba655?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60",
-    },
-  ];
-
   const quoteImages = [
     {
       image:
@@ -114,6 +144,39 @@ const HomePage = () => {
     },
   ];
 
+  useEffect(() => {
+    const fetchFeaturedProducts = async () => {
+      try {
+        const response = await axios.get(
+          "https://fakestoreapi.com/products?limit=8"
+        );
+        setFeaturedProducts(response.data);
+      } catch (error) {
+        console.error("Error fetching featured products:", error);
+      }
+    };
+
+    fetchFeaturedProducts();
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setVisibleCards(4);
+      } else if (window.innerWidth >= 768) {
+        setVisibleCards(3);
+      } else if (window.innerWidth >= 640) {
+        setVisibleCards(2);
+      } else {
+        setVisibleCards(1);
+      }
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const scrollCards = (
     direction,
     setCurrentCardFunction,
@@ -122,7 +185,7 @@ const HomePage = () => {
   ) => {
     setCurrentCardFunction((prev) => {
       const newCard = prev + (direction === "left" ? -1 : 1);
-      return Math.max(0, Math.min(newCard, totalCards - 4));
+      return Math.max(0, Math.min(newCard, totalCards - visibleCards));
     });
   };
 
@@ -130,47 +193,43 @@ const HomePage = () => {
     const container = cardContainerRef.current;
     if (container) {
       container.scrollTo({
-        left: currentCard * (container.offsetWidth / 4),
+        left: currentCard * (container.offsetWidth / visibleCards),
         behavior: "smooth",
       });
     }
-  }, [currentCard]);
+  }, [currentCard, visibleCards]);
 
   useEffect(() => {
     const container = featuredCardContainerRef.current;
     if (container) {
       container.scrollTo({
-        left: currentFeaturedCard * (container.offsetWidth / 4),
+        left: currentFeaturedCard * (container.offsetWidth / visibleCards),
         behavior: "smooth",
       });
     }
-  }, [currentFeaturedCard]);
+  }, [currentFeaturedCard, visibleCards]);
 
-  const ProductCard = ({ product }) => (
-    <div className="rounded-lg shadow-md overflow-hidden h-full bg-white">
-      <img
-        src={product.image}
-        alt={product.title}
-        className="w-full h-64 object-cover"
-      />
-      <div className="p-4">
-        <h3 className="text-xl font-semibold mb-2 text-center">
-          {product.title}
-        </h3>
-        <p className="text-center text-green-600 font-bold mb-4">
-          {product.price}
-        </p>
-        <div className="flex justify-between">
-          <button className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded text-sm flex items-center transition duration-300 ease-in-out transform hover:scale-105">
-            <FiInfo className="mr-1" /> Details
-          </button>
-          <button className="bg-green-500 hover:bg-green-600 text-white font-bold py-1 px-2 rounded text-sm flex items-center transition duration-300 ease-in-out transform hover:scale-105">
-            <FaShoppingCart className="mr-1" /> Add
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e) => setTouchEnd(e.targetTouches[0].clientX);
+
+  const onTouchEnd = (setCurrentCardFunction, containerRef, totalCards) => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+    if (isLeftSwipe || isRightSwipe) {
+      scrollCards(
+        isLeftSwipe ? "right" : "left",
+        setCurrentCardFunction,
+        containerRef,
+        totalCards
+      );
+    }
+  };
 
   return (
     <main className="min-h-screen bg-gray-100">
@@ -178,7 +237,7 @@ const HomePage = () => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 1 }}
-        className="flex flex-col md:flex-row h-screen md:h-[60vh] gap-2 mt-20"
+        className="flex flex-col md:flex-row h-screen md:h-96 lg:mb-12 -mb-64 gap-2 mt-20"
       >
         <div
           className="w-full md:w-[calc(66.666%-0.25rem)] bg-cover bg-center flex flex-col justify-center items-center text-white p-8 transition-all duration-300 ease-in-out"
@@ -191,7 +250,7 @@ const HomePage = () => {
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2, duration: 0.5 }}
-            className="text-4xl font-bold mb-2"
+            className="text-2xl md:text-4xl font-bold mb-2 text-center"
           >
             Fresh Organic Vegetables
           </motion.h2>
@@ -199,7 +258,7 @@ const HomePage = () => {
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.4, duration: 0.5 }}
-            className="text-xl mb-4"
+            className="text-lg md:text-xl mb-4 text-center"
           >
             Straight from our farms to your table
           </motion.p>
@@ -227,7 +286,7 @@ const HomePage = () => {
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2, duration: 0.5 }}
-            className="text-3xl font-bold mb-2"
+            className="text-2xl md:text-3xl font-bold mb-2 text-center"
           >
             Organic Fruits
           </motion.h2>
@@ -235,7 +294,7 @@ const HomePage = () => {
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.4, duration: 0.5 }}
-            className="text-lg mb-4"
+            className="text-base md:text-lg mb-4 text-center"
           >
             Nature's sweet treats
           </motion.p>
@@ -255,11 +314,18 @@ const HomePage = () => {
       </motion.section>
 
       <section className="py-12 px-4">
-        <h2 className="text-3xl font-bold text-center mb-8">Our Specialties</h2>
+        <h2 className="text-2xl md:text-3xl font-bold text-center mb-8">
+          Our Specialties
+        </h2>
         <div className="relative w-full">
           <div
             ref={cardContainerRef}
             className="flex overflow-hidden scroll-smooth w-full"
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={() =>
+              onTouchEnd(setCurrentCard, cardContainerRef, cards.length)
+            }
           >
             <AnimatePresence initial={false}>
               {cards.map((card, index) => (
@@ -269,7 +335,15 @@ const HomePage = () => {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
                   transition={{ duration: 0.5 }}
-                  className="flex-shrink-0 w-1/4 p-4"
+                  className={`flex-shrink-0 w-full ${
+                    visibleCards === 1
+                      ? "sm:w-full"
+                      : visibleCards === 2
+                      ? "sm:w-1/2"
+                      : visibleCards === 3
+                      ? "sm:w-1/3"
+                      : "sm:w-1/4"
+                  } p-4`}
                 >
                   <div
                     className={`rounded-lg shadow-md overflow-hidden h-full ${card.bgColor}`}
@@ -310,7 +384,7 @@ const HomePage = () => {
               </motion.button>
             </div>
           )}
-          {currentCard < cards.length - 4 && (
+          {currentCard < cards.length - visibleCards && (
             <div className="absolute inset-y-0 right-0 flex items-center">
               <motion.button
                 whileHover={{ scale: 1.1 }}
@@ -333,27 +407,50 @@ const HomePage = () => {
       </section>
 
       <section className="py-12 px-4 bg-green-50">
-        <h2 className="text-3xl font-bold text-center mb-8">
+        <h2 className="text-2xl md:text-3xl font-bold text-center mb-8">
           Featured Products
         </h2>
         <div className="relative w-full">
           <div
             ref={featuredCardContainerRef}
             className="flex overflow-hidden scroll-smooth w-full"
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={() =>
+              onTouchEnd(
+                setCurrentFeaturedCard,
+                featuredCardContainerRef,
+                featuredProducts.length
+              )
+            }
           >
             <AnimatePresence initial={false}>
-              {featuredProducts.map((product, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  transition={{ duration: 0.5 }}
-                  className="flex-shrink-0 w-1/4 p-4"
-                >
-                  <ProductCard product={product} />
-                </motion.div>
-              ))}
+              {featuredProducts.length > 0 ? (
+                featuredProducts.map((product, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.5 }}
+                    className={`flex-shrink-0 w-full ${
+                      visibleCards === 1
+                        ? "sm:w-full"
+                        : visibleCards === 2
+                        ? "sm:w-1/2"
+                        : visibleCards === 3
+                        ? "sm:w-1/3"
+                        : "sm:w-1/4"
+                    } p-4`}
+                  >
+                    <ProductCard product={product} />
+                  </motion.div>
+                ))
+              ) : (
+                <div className="w-full text-center py-8">
+                  <p className="text-xl">Loading featured products...</p>
+                </div>
+              )}
             </AnimatePresence>
           </div>
           {currentFeaturedCard > 0 && (
@@ -375,7 +472,7 @@ const HomePage = () => {
               </motion.button>
             </div>
           )}
-          {currentFeaturedCard < featuredProducts.length - 4 && (
+          {currentFeaturedCard < featuredProducts.length - visibleCards && (
             <div className="absolute inset-y-0 right-0 flex items-center">
               <motion.button
                 whileHover={{ scale: 1.1 }}
@@ -396,15 +493,18 @@ const HomePage = () => {
           )}
         </div>
       </section>
-      <section className="flex mt-20 gap-2">
+
+      <section className="flex flex-col md:flex-row mt-20 gap-2">
         {quoteImages.map((item, index) => (
           <div
             key={index}
-            className="w-1/3 h-96 bg-cover bg-center relative overflow-hidden group"
+            className="w-full md:w-1/3 h-64 md:h-96 bg-cover bg-center relative overflow-hidden group"
             style={{ backgroundImage: `url(${item.image})` }}
           >
             <div className="absolute inset-0 bg-black bg-opacity-40 flex items-start justify-center p-4">
-              <h2 className={`text-3xl font-bold ${item.textColor}`}>
+              <h2
+                className={`text-2xl md:text-3xl font-bold ${item.textColor} text-center`}
+              >
                 {item.quote}
               </h2>
             </div>
@@ -412,9 +512,8 @@ const HomePage = () => {
           </div>
         ))}
       </section>
-      <section></section>
     </main>
-  )
+  );
 };
 
 export default HomePage;
